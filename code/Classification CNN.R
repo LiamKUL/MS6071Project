@@ -1,6 +1,20 @@
 
 ###########################cnn for classification on images already cropped
 
+
+class_names <- c(
+  "Comminuted",
+  "Greenstick",
+  "Healthy",
+  "Linear",
+  "Oblique Displaced",
+  "Oblique",
+  "Segmental",
+  "Spiral",
+  "Transverse Displaced",
+  "Transverse"
+)
+
 ####### resizing cropped images to same dimensions
 target_h <- 150
 target_w <- 150
@@ -152,8 +166,12 @@ plot(history)
 pred_prob <- predict(model, x_test)
 y_pred <- max.col(pred_prob) - 1
 
+
+# Convert numerical predictions to fracture names
+y_pred_names <- class_names[y_pred + 1]
+
 # Check predicted class distribution
-table(y_pred)
+table(y_pred_names)
 
 # Confusion matrix
 table(
