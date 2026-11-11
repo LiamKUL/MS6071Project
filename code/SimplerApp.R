@@ -3,15 +3,23 @@ library(keras3)
 library(EBImage)
 library(reticulate)
 
-model_path <- "C:/Users/Kallen/Documents/MS6071 Project"
-
-model <- load_model(
-  file.path(model_path, "bone_fracture_model.keras")
-)
-
-fracture_classes <- readRDS(
-  file.path(model_path, "fracture_classes.rds")
-)
+project_root <- if (dir.exists(file.path(getwd(), "data"))) {
+  getwd()
+} else if (dir.exists(file.path(getwd(), "..", "data"))) {
+  file.path(getwd(), "..")
+} else {
+  stop("Set the working directory to the repository root or code directory.")
+}
+project_root <- normalizePath(project_root, winslash = "/")
+source(file.path(project_root, "code", "Model Saver.R"))
+saved_models <- load_fracture_models(project_root)
+model <- saved_models$classification
+fracture_classes <- saved_models$classes
+if (is.null(fracture_classes)) {
+  fracture_classes <- c("Comminuted", "Greenstick", "Healthy", "Linear",
+    "Oblique Displaced", "Oblique", "Segmental", "Spiral",
+    "Transverse Displaced", "Transverse")
+}
 
 ## Build the layout for the User Interface
 

@@ -2,19 +2,31 @@ library(EBImage)
 library(tidyverse)
 library(magick)
 
+project_root <- if (dir.exists(file.path(getwd(), "data"))) {
+  getwd()
+} else if (dir.exists(file.path(getwd(), "..", "data"))) {
+  file.path(getwd(), "..")
+} else {
+  stop("Set the working directory to the repository root or code directory.")
+}
+project_root <- normalizePath(project_root, winslash = "/")
+dataset_path <- file.path(project_root, "data",
+  "Human Bone Fractures Multi-modal Image Dataset (HBFMID)",
+  "Bone Fractures Detection")
+
 ######## Bone Fractures Detection
 
 ##################### traing set of images ######################
 
 # load images
-train_img_names<- list.files(path ="D:/Desktop/R for Statistical Data Science Project/Bone Fractures Detection/train/images",pattern = "*.jpg",full.names = TRUE )
+train_img_names<- list.files(path = file.path(dataset_path, "train", "images"),pattern = "\\.jpg$",full.names = TRUE )
 train_images<-lapply(train_img_names,readImage)
 
 #dim of images
 dimensions<-data.frame(unique(lapply(train_images,dim)))
 
 # load txt files 
-train_txt_names<-list.files("D:/Desktop/R for Statistical Data Science Project/Bone Fractures Detection/train/labels",pattern="*.txt",full.names = TRUE)
+train_txt_names<-list.files(file.path(dataset_path, "train", "labels"),pattern="\\.txt$",full.names = TRUE)
 train_txtfiles<-lapply(train_txt_names,read.table)
 
 #### creating list for fractures
@@ -55,14 +67,14 @@ head(train_Fracture_list)
 ##################### validation set of images ######################
 
 # load images
-valid_img_names<- list.files(path ="D:/Desktop/R for Statistical Data Science Project/Bone Fractures Detection/valid/images",pattern = "*.jpg",full.names = TRUE )
+valid_img_names<- list.files(path = file.path(dataset_path, "valid", "images"),pattern = "\\.jpg$",full.names = TRUE )
 valid_images<-lapply(valid_img_names,readImage)
 
 #dim of images
 dimensions<-data.frame(unique(lapply(valid_images,dim)))
 
 # load txt files 
-valid_txt_names<-list.files("D:/Desktop/R for Statistical Data Science Project/Bone Fractures Detection/valid/labels",pattern="*.txt",full.names = TRUE)
+valid_txt_names<-list.files(file.path(dataset_path, "valid", "labels"),pattern="\\.txt$",full.names = TRUE)
 valid_txtfiles<-lapply(valid_txt_names,read.table)
 
 #### creating list for fractures
@@ -113,7 +125,18 @@ crop_Fr<-function(n){as_EBImage(image_read(train_img_names[[train_Fracture_list[
 
 Fracture_Images<-list()
 n<-1
-while (n<length(train_Fracture_list)) {Fracture_Images[[n]]<-crop_Fr(n)
+while (n<nrow(train_Fracture_list)+1) {Fracture_Images[[n]]<-crop_Fr(n)
+n<-n+1}
+
+crop_valid_Fr<-function(n){as_EBImage(image_read(valid_img_names[[valid_Fracture_list[n,6]]])%>%image_crop(geometry = geometry_area(
+  width = valid_Fracture_list[n,4]*640,
+  height = valid_Fracture_list[n,5]*640,
+  x_off = (valid_Fracture_list[n,2]*640)-(valid_Fracture_list[n,4]*640)/2,
+  y_off = (valid_Fracture_list[n,3]*640)-(valid_Fracture_list[n,5]*640)/2)))}
+
+valid_Fracture_Images<-list()
+n<-1
+while (n<nrow(valid_Fracture_list)+1) {valid_Fracture_Images[[n]]<-crop_valid_Fr(n)
 n<-n+1}
 
 display(train_images[[1]])

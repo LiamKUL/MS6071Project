@@ -1,11 +1,16 @@
-#set Python before loading keras3
-Sys.setenv(
- RETICULATE_PYTHON =
-    "C:/Users/valcl/Documents/.virtualenvs/r-keras311/Scripts/python.exe"
-)
-
 library(keras3)
 library(EBImage)
+
+project_root <- if (dir.exists(file.path(getwd(), "data"))) {
+    getwd()
+} else if (dir.exists(file.path(getwd(), "..", "data"))) {
+    file.path(getwd(), "..")
+} else {
+    stop("Set the working directory to the repository root or code directory.")
+}
+project_root <- normalizePath(project_root, winslash = "/")
+source(file.path(project_root, "code", "Image Loading.R"))
+source(file.path(project_root, "code", "Model Saver.R"))
 
 image_size<-256
 grid_size<-16
@@ -198,6 +203,11 @@ plot(history)
 
 
 y_pred<-predict(model,X_valid,batch_size = 16)
+
+save_fracture_models(
+    project_root,
+    detection_model = model
+)
 
 
 

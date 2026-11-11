@@ -1,3 +1,14 @@
+project_root <- if (dir.exists(file.path(getwd(), "data"))) {
+  getwd()
+} else if (dir.exists(file.path(getwd(), "..", "data"))) {
+  file.path(getwd(), "..")
+} else {
+  stop("Set the working directory to the repository root or code directory.")
+}
+project_root <- normalizePath(project_root, winslash = "/")
+source(file.path(project_root, "code", "Image Loading.R"))
+source(file.path(project_root, "code", "Model Saver.R"))
+library(keras3)
 
 ###########################cnn for classification on images already cropped
 
@@ -87,7 +98,7 @@ class_weights
 
 ################## CNN model ##################
 
-num_classes <- length(unique(y_train))
+num_classes <- length(class_names)
 
 model <- keras_model_sequential() |>
   layer_conv_2d(
@@ -181,3 +192,9 @@ table(
 
 # Evaluate overall validation performance
 model |> evaluate(x_test, y_test)
+
+save_fracture_models(
+  project_root,
+  classification_model = model,
+  class_names = class_names
+)

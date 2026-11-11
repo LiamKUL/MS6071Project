@@ -10,12 +10,23 @@ library(ggplot2)
 # 1. LOAD MODEL EXPORT FILE
 # ============================================================
 
-project_path <- "C:/Users/Kallen/Documents/MS6071 Project"
-
-# Load existing model and prediction functions
-source(
-  file.path(project_path, "Model_Export.R")
-)
+project_root <- if (dir.exists(file.path(getwd(), "data"))) {
+  getwd()
+} else if (dir.exists(file.path(getwd(), "..", "data"))) {
+  file.path(getwd(), "..")
+} else {
+  stop("Set the working directory to the repository root or code directory.")
+}
+project_root <- normalizePath(project_root, winslash = "/")
+source(file.path(project_root, "code", "Model Saver.R"))
+saved_models <- load_fracture_models(project_root)
+model <- saved_models$classification
+fracture_classes <- saved_models$classes
+if (is.null(fracture_classes)) {
+  fracture_classes <- c("Comminuted", "Greenstick", "Healthy", "Linear",
+    "Oblique Displaced", "Oblique", "Segmental", "Spiral",
+    "Transverse Displaced", "Transverse")
+}
 
 
 # ============================================================
@@ -358,7 +369,7 @@ server <- function(input, output, session) {
   
   
   # ----------------------------------------------------------
-  # CLASSIFY IMAGE USING EXISTING MODEL_EXPORT FUNCTION
+  # CLASSIFY IMAGE USING THE SAVED MODEL
   # ----------------------------------------------------------
   
   observeEvent(input$classify, {
@@ -374,11 +385,9 @@ server <- function(input, output, session) {
     tryCatch({
       
       result <- predict_fracture(
-        
         input$xray$datapath,
-        
-        input$xray$name
-        
+        model,
+        fracture_classes
       )
       
       # Store prediction
@@ -487,16 +496,13 @@ server <- function(input, output, session) {
     
     result <- prediction_result()
     
-    # Obtain probabilities returned by Model_Export
+    # Obtain probabilities returned by the saved model
     probabilities <- result$probabilities
     
     # Create dataframe
     probability_data <- data.frame(
       
-      Class = paste(
-        "Class",
-        seq_along(probabilities) - 1
-      ),
+      Class = fracture_classes,
       
       Probability = as.numeric(probabilities) * 100
       

@@ -22,11 +22,14 @@ R and RStudio obv
 Github account etc which we already did
 GitBash downloaded to computer. This is the important part. This is the command window for Github on your computer. Commands can be run here to get the stuff from the repository, and to push stuff you've done to the repository.
 
+## Running the models and app
+Open this repository in RStudio so the working directory is the repository root. Install `keras3`, `EBImage`, `magick`, `tidyverse`, `shiny`, and `ggplot2` if needed. Run `source("code/Classification CNN.R")` and/or `source("code/Fracture Detection.R")` to train and save models under `models/`. Then run the app with `shiny::runApp("code")`. The app can open before training, but predictions require a saved classification model. Keras also needs a working Python backend configured for your own machine.
+
 ## Quick Start Guide
 **Clone the repository:**
 Set location in gitbash that you want the repository to be. Put in your own filepath. I have put mine in for example.
   ```bash
-    cd "C:\Users\kelly\OneDrive - University of Limerick\Documents\College\Masters_Sem1\MS6071\MS6071 Code"
+    cd "path/to/MS6071Project-parent"
   ```
 Then clone the repository to that location
    ```bash
@@ -45,7 +48,7 @@ Apparently we should all configure our names and emails. Idk really why but tbh 
 Clone repository
 Set location in gitbash that you want the repository to be. Put in your own filepath. I have put mine in for example.
   ```bash
-    cd "C:\Users\kelly\OneDrive - University of Limerick\Documents\College\Masters_Sem1\MS6071\MS6071 Code\MS6071Project"
+    cd "path/to/MS6071Project"
   ```
 Then clone the repository to that location
    ```bash
