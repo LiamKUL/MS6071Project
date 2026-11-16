@@ -14,7 +14,7 @@ dataset_path <- file.path(project_root, "data",
   "HBFMID"
   )
 
-######## Bone Fractures Detection
+######## Bone Fractures Detections
 
 ##################### traing set of images ######################
 # Load images
