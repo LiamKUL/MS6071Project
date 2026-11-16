@@ -11,17 +11,20 @@ project_root <- if (dir.exists(file.path(getwd(), "data"))) {
 }
 project_root <- normalizePath(project_root, winslash = "/")
 dataset_path <- file.path(project_root, "data",
-  "Human Bone Fractures Multi-modal Image Dataset (HBFMID)",
-  "Bone Fractures Detection")
+  "HBFMID"
+  )
 
 ######## Bone Fractures Detection
 
 ##################### traing set of images ######################
+# Load images
+train_img_names <- list.files(
+  path = file.path(dataset_path, "train", "images"),
+  pattern = "\\.jpg$",
+  full.names = TRUE
+)
 
-# load images
-train_img_names<- list.files(path = file.path(dataset_path, "train", "images"),pattern = "\\.jpg$",full.names = TRUE )
-train_images<-lapply(train_img_names,readImage)
-
+train_images <- lapply(train_img_names, readImage)
 #dim of images
 dimensions<-data.frame(unique(lapply(train_images,dim)))
 
