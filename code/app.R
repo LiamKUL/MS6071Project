@@ -3,34 +3,90 @@
 # BONE FRACTURE CLASSIFICATION - SHINY APPLICATION
 # ============================================================
 
+# ============================================================
+# 1. LOAD REQUIRED PACKAGES AND PYTHON ENVIRONMENT
+# ============================================================
+
 library(shiny)
-library(ggplot2)
+library(keras3)
+library(EBImage)
+library(reticulate)
+
 
 # ============================================================
-# 1. LOAD MODEL EXPORT FILE
+# 2. LOAD TRAINED MODEL AND FRACTURE CLASSES
 # ============================================================
+
+# Locate repository root
 
 project_root <- if (dir.exists(file.path(getwd(), "data"))) {
   getwd()
 } else if (dir.exists(file.path(getwd(), "..", "data"))) {
   file.path(getwd(), "..")
 } else {
-  stop("Set the working directory to the repository root or code directory.")
+  stop(
+    "Set the working directory to the repository root or code directory."
+  )
 }
-project_root <- normalizePath(project_root, winslash = "/")
-source(file.path(project_root, "code", "Model Saver.R"))
-saved_models <- load_fracture_models(project_root)
-model <- saved_models$classification
-fracture_classes <- saved_models$classes
-if (is.null(fracture_classes)) {
-  fracture_classes <- c("Comminuted", "Greenstick", "Healthy", "Linear",
-    "Oblique Displaced", "Oblique", "Segmental", "Spiral",
-    "Transverse Displaced", "Transverse")
+
+project_root <- normalizePath(
+  project_root,
+  winslash = "/"
+)
+
+# Locate model files
+
+model_path <- file.path(
+  project_root,
+  "models"
+)
+
+model_file <- file.path(
+  model_path,
+  "bone_fracture_model.keras"
+)
+
+classes_file <- file.path(
+  model_path,
+  "fracture_classes.rds"
+)
+
+# Check that model files exist
+
+if (!file.exists(model_file)) {
+  stop("Trained model not found: ", model_file)
 }
+
+if (!file.exists(classes_file)) {
+  stop("Fracture classes not found: ", classes_file)
+}
+
+# Load trained CNN model
+
+model <- load_model(model_file)
+
+# Load fracture class mapping
+
+fracture_classes <- readRDS(classes_file)
+
+# Map numerical class identifiers to fracture labels
+
+fracture_labels <- c(
+  "0" = "Comminuted",
+  "1" = "Greenstick",
+  "2" = "Healthy",
+  "3" = "Linear",
+  "4" = "Oblique Displaced",
+  "5" = "Oblique",
+  "6" = "Segmental",
+  "7" = "Spiral",
+  "8" = "Transverse Displaced",
+  "9" = "Transverse"
+)
 
 
 # ============================================================
-# 2. USER INTERFACE
+# 3. USER INTERFACE
 # ============================================================
 
 ui <- fluidPage(
@@ -52,26 +108,28 @@ ui <- fluidPage(
         text-align: center;
         color: #243b53;
         font-weight: bold;
-        padding: 15px;
+        padding: 5px;
+        margin-top: 5px;
+        margin-bottom: 0px;
       }
 
       .subtitle {
         text-align: center;
         color: #627d98;
-        margin-bottom: 25px;
+        margin-bottom: 10px;
       }
 
       .panel-box {
         background-color: white;
-        padding: 22px;
+        padding: 12px;
         border-radius: 10px;
         box-shadow: 0px 2px 8px rgba(0,0,0,0.08);
-        margin-bottom: 20px;
+        margin-bottom: 10px;
       }
 
       .image-container {
         width: 100%;
-        height: 450px;
+        height: 300px;
         border: 2px solid #cccccc;
         border-radius: 8px;
         display: flex;
@@ -92,21 +150,17 @@ ui <- fluidPage(
       .section-heading {
         color: #243b53;
         font-weight: bold;
-        margin-bottom: 15px;
+        margin-bottom: 8px;
+        margin-top: 3px;
+        font-size: 20px;
       }
 
       .result-box {
         background-color: #eaf3f8;
         border-left: 5px solid #2878a5;
-        padding: 18px;
+        padding: 10px;
         border-radius: 6px;
-        margin-top: 15px;
-      }
-
-      .confidence-text {
-        font-size: 22px;
-        color: #2878a5;
-        font-weight: bold;
+        margin-top: 5px;
       }
 
       .btn-primary {
@@ -114,7 +168,7 @@ ui <- fluidPage(
         border-color: #2878a5;
         width: 100%;
         font-weight: bold;
-        padding: 12px;
+        padding: 8px;
       }
 
       .btn-primary:hover {
@@ -123,8 +177,8 @@ ui <- fluidPage(
 
       .disclaimer {
         color: #7b8794;
-        font-size: 12px;
-        margin-top: 20px;
+        font-size: 11px;
+        margin-top: 5px;
       }
 
     "))
@@ -169,17 +223,9 @@ ui <- fluidPage(
       ),
       
       fileInput(
-        
-        inputId = "xray",
-        
+        inputId = "image",
         label = "Choose an image:",
-        
-        accept = c(
-          ".jpg",
-          ".jpeg",
-          ".png"
-        )
-        
+        accept = c(".jpg", ".jpeg", ".png")
       ),
       
       p(
@@ -190,28 +236,9 @@ ui <- fluidPage(
       hr(),
       
       actionButton(
-        
-        inputId = "classify",
-        
+        inputId = "predict",
         label = "Classify Image",
-        
         class = "btn-primary"
-        
-      ),
-      
-      br(),
-      br(),
-      
-      actionButton(
-        
-        inputId = "reset",
-        
-        label = "Reset",
-        
-        class = "btn-default",
-        
-        style = "width: 100%;"
-        
       )
       
     ),
@@ -241,8 +268,8 @@ ui <- fluidPage(
           class = "image-container",
           
           imageOutput(
-            "preview",
-            height = "440px"
+            "uploaded_image",
+            height = "250px"
           )
           
         )
@@ -263,27 +290,20 @@ ui <- fluidPage(
           class = "section-heading"
         ),
         
-        uiOutput("result")
-        
-      ),
-      
-      
-      # ------------------------------------------------------
-      # PREDICTION PROBABILITY GRAPH
-      # ------------------------------------------------------
-      
-      div(
-        
-        class = "panel-box",
-        
-        h3(
-          "Classification Probabilities",
-          class = "section-heading"
-        ),
-        
-        plotOutput(
-          "probability_plot",
-          height = "350px"
+        div(
+          
+          class = "result-box",
+          
+          h4("Predicted Fracture Type"),
+          
+          textOutput("prediction"),
+          
+          hr(),
+          
+          h4("Prediction Confidence"),
+          
+          textOutput("confidence")
+          
         )
         
       )
@@ -304,14 +324,11 @@ ui <- fluidPage(
       width = 12,
       
       p(
-        
         "Disclaimer: This application is an experimental
         machine learning project. Predictions are not a
         medical diagnosis and should not be used to make
         clinical decisions.",
-        
         class = "disclaimer"
-        
       )
       
     )
@@ -322,279 +339,189 @@ ui <- fluidPage(
 
 
 # ============================================================
-# 3. SERVER
+# 4. SERVER
 # ============================================================
 
 server <- function(input, output, session) {
-  
-  # Store prediction results
-  prediction_result <- reactiveVal(NULL)
-  
-  # Store prediction errors
-  prediction_error <- reactiveVal(NULL)
   
   
   # ----------------------------------------------------------
   # DISPLAY UPLOADED IMAGE
   # ----------------------------------------------------------
   
-  output$preview <- renderImage({
+  output$uploaded_image <- renderImage({
     
-    req(input$xray)
+    req(input$image)
     
     list(
-      
-      src = input$xray$datapath,
-      
-      contentType = input$xray$type,
-      
-      alt = "Uploaded X-ray image"
-      
+      src = input$image$datapath,
+      contentType = input$image$type,
+      width = "100%",
+      alt = "Uploaded X-ray"
     )
     
   }, deleteFile = FALSE)
   
   
   # ----------------------------------------------------------
-  # RESET RESULTS WHEN A NEW IMAGE IS UPLOADED
+  # IMAGE PREPROCESSING FUNCTION
   # ----------------------------------------------------------
   
-  observeEvent(input$xray, {
+  preprocess_image <- function(image_path) {
     
-    prediction_result(NULL)
+    # Read uploaded image using EBImage
     
-    prediction_error(NULL)
+    img <- EBImage::readImage(image_path)
     
-  }, ignoreInit = TRUE)
+    # Convert grayscale image to RGB if necessary
+    
+    if (length(dim(img)) == 2) {
+      
+      img <- EBImage::rgbImage(
+        img, img, img
+      )
+      
+    } else if (length(dim(img)) == 3 && dim(img)[3] == 1) {
+      
+      img <- EBImage::rgbImage(
+        img[, , 1],
+        img[, , 1],
+        img[, , 1]
+      )
+      
+    }
+    
+    # Ensure image has three colour channels
+    
+    if (length(dim(img)) != 3 || dim(img)[3] != 3) {
+      stop("Image must have three colour channels.")
+    }
+    
+    # Resize image to match CNN training dimensions
+    
+    img <- EBImage::resize(
+      img,
+      w = 150,
+      h = 150
+    )
+    
+    # Convert image into an array
+    
+    img_array <- as.array(img)
+    
+    # Add batch dimension
+    
+    img_array <- array(
+      img_array,
+      dim = c(1, dim(img_array))
+    )
+    
+    return(img_array)
+    
+  }
   
   
   # ----------------------------------------------------------
-  # CLASSIFY IMAGE USING THE SAVED MODEL
+  # IMAGE CLASSIFICATION
   # ----------------------------------------------------------
   
-  observeEvent(input$classify, {
+  observeEvent(input$predict, {
     
-    req(input$xray)
+    req(input$image)
     
-    # Clear previous results
-    prediction_result(NULL)
-    
-    prediction_error(NULL)
-    
-    # Run existing prediction function
     tryCatch({
       
-      result <- predict_fracture(
-        input$xray$datapath,
+      # Process uploaded image
+      
+      uploaded_image_array <- preprocess_image(
+        input$image$datapath
+      )
+      
+      # Obtain prediction probabilities
+      
+      prediction_prob <- predict(
         model,
-        fracture_classes
+        uploaded_image_array
       )
       
-      # Store prediction
-      prediction_result(result)
+      # Extract prediction probabilities
       
-    },
-    
-    error = function(e) {
-      
-      prediction_error(
-        conditionMessage(e)
+      probabilities <- as.numeric(
+        prediction_prob[1, ]
       )
+      
+      # Check prediction output matches the class mapping
+      
+      if (length(probabilities) != length(fracture_classes)) {
+        stop("Prediction output does not match the fracture class mapping.")
+      }
+      
+      # Identify predicted fracture class
+      
+      predicted_index <- which.max(probabilities)
+      
+      predicted_class <- as.character(
+        fracture_classes[predicted_index]
+      )
+      
+      # Obtain corresponding fracture label
+      
+      if (predicted_class %in% names(fracture_labels)) {
+        
+        predicted_fracture <- unname(
+          fracture_labels[predicted_class]
+        )
+        
+      } else {
+        
+        predicted_fracture <- predicted_class
+        
+      }
+      
+      # Obtain prediction confidence
+      
+      confidence <- max(probabilities) * 100
+      
+      # Display predicted class
+      
+      output$prediction <- renderText({
+        
+        paste(
+          "Predicted Fracture Class:",
+          predicted_fracture
+        )
+        
+      })
+      
+      # Display prediction probability
+      
+      output$confidence <- renderText({
+        
+        paste(
+          "Prediction Confidence:",
+          round(confidence, 2),
+          "%"
+        )
+        
+      })
+      
+    }, error = function(e) {
+      
+      # Display classification error
+      
+      output$prediction <- renderText({
+        
+        paste("Error:", e$message)
+        
+      })
+      
+      output$confidence <- renderText({
+        
+        ""
+        
+      })
       
     })
-    
-  })
-  
-  
-  # ----------------------------------------------------------
-  # DISPLAY CLASSIFICATION RESULT
-  # ----------------------------------------------------------
-  
-  output$result <- renderUI({
-    
-    # Display error if prediction fails
-    if (!is.null(prediction_error())) {
-      
-      return(
-        
-        div(
-          
-          style = "color: #b42318;",
-          
-          h4("Classification Error"),
-          
-          p(prediction_error())
-          
-        )
-        
-      )
-      
-    }
-    
-    # Display instructions before classification
-    if (is.null(prediction_result())) {
-      
-      return(
-        
-        p(
-          "Upload an X-ray image and click Classify Image
-          to generate a prediction.",
-          style = "color: #627d98;"
-        )
-        
-      )
-      
-    }
-    
-    result <- prediction_result()
-    
-    # Display classification
-    div(
-      
-      class = "result-box",
-      
-      h4("Predicted Fracture Type"),
-      
-      h2(
-        
-        result$predicted_class,
-        
-        style = "
-          color: #2878a5;
-          font-weight: bold;
-        "
-        
-      ),
-      
-      hr(),
-      
-      h4("Prediction Confidence"),
-      
-      p(
-        
-        paste0(
-          round(result$confidence * 100, 2),
-          "%"
-        ),
-        
-        class = "confidence-text"
-        
-      )
-      
-    )
-    
-  })
-  
-  
-  # ----------------------------------------------------------
-  # DISPLAY CLASSIFICATION PROBABILITIES
-  # ----------------------------------------------------------
-  
-  output$probability_plot <- renderPlot({
-    
-    req(prediction_result())
-    
-    result <- prediction_result()
-    
-    # Obtain probabilities returned by the saved model
-    probabilities <- result$probabilities
-    
-    # Create dataframe
-    probability_data <- data.frame(
-      
-      Class = fracture_classes,
-      
-      Probability = as.numeric(probabilities) * 100
-      
-    )
-    
-    # Order classes by probability
-    probability_data$Class <- factor(
-      
-      probability_data$Class,
-      
-      levels = probability_data$Class[
-        order(probability_data$Probability)
-      ]
-      
-    )
-    
-    # Generate probability graph
-    ggplot(
-      
-      probability_data,
-      
-      aes(
-        x = Class,
-        y = Probability
-      )
-      
-    ) +
-      
-      geom_col(
-        
-        fill = "steelblue",
-        
-        width = 0.7
-        
-      ) +
-      
-      geom_text(
-        
-        aes(
-          label = paste0(
-            round(Probability, 2),
-            "%"
-          )
-        ),
-        
-        hjust = -0.15,
-        
-        size = 3.5
-        
-      ) +
-      
-      coord_flip() +
-      
-      scale_y_continuous(
-        
-        limits = c(
-          0,
-          max(105, max(probability_data$Probability) * 1.15)
-        )
-        
-      ) +
-      
-      labs(
-        
-        x = "Fracture Classification",
-        
-        y = "Prediction Probability (%)",
-        
-        title = "CNN Prediction Probabilities"
-        
-      ) +
-      
-      theme_minimal()
-    
-  })
-  
-  
-  # ----------------------------------------------------------
-  # RESET APPLICATION
-  # ----------------------------------------------------------
-  
-  observeEvent(input$reset, {
-    
-    prediction_result(NULL)
-    
-    prediction_error(NULL)
-    
-    updateFileInput(
-      session,
-      "xray",
-      label = "Choose an image:"
-    )
     
   })
   
@@ -602,7 +529,7 @@ server <- function(input, output, session) {
 
 
 # ============================================================
-# 4. RUN SHINY APPLICATION
+# 5. RUN SHINY APPLICATION
 # ============================================================
 
 shinyApp(

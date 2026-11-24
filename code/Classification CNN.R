@@ -27,20 +27,28 @@ class_names <- c(
 )
 
 ####### resizing cropped images to same dimensions
+
 target_h <- 150
 target_w <- 150
 
-#####train
+##### Training
 Cell_Images_resized <- lapply(Fracture_Images, function(img) {
-  resize(img, w = target_w, h = target_h)})
-#####validation
-Cell_Images_resized_test <- lapply(valid_Fracture_Images, function(img) {
+  resize(img, w = target_w, h = target_h)
+})
+
+##### Validation
+Cell_Images_resized_val <- lapply(valid_Fracture_Images, function(img) {
+  resize(img, w = target_w, h = target_h)
+})
+
+##### Test
+Cell_Images_resized_test <- lapply(test_Fracture_Images, function(img) {
   resize(img, w = target_w, h = target_h)
 })
 
 display(Cell_Images_resized[[5]])
+display(Cell_Images_resized_val[[2]])
 display(Cell_Images_resized_test[[2]])
-
 
 ##################### Converting images to arrays #####################
 
@@ -57,8 +65,7 @@ x_train <- array(
 
 x_train <- aperm(x_train, c(4, 1, 2, 3))
 
-
-##### Validation
+#### Test
 
 image_arrays_test <- lapply(Cell_Images_resized_test, as.array)
 
@@ -70,20 +77,35 @@ x_test <- array(
 )
 
 x_test <- aperm(x_test, c(4, 1, 2, 3))
+
+##### Validation
+
+image_arrays_val <- lapply(Cell_Images_resized_val, as.array)
+
+image_dim_val <- dim(image_arrays_val[[1]])
+
+x_valid <- array(
+  unlist(image_arrays_val, use.names = FALSE),
+  dim = c(image_dim_val, length(image_arrays_val))
+)
+
+x_valid <- aperm(x_valid, c(4, 1, 2, 3))
 ################## Class labels ##################
 
 y_train <- as.integer(train_Fracture_list$V1)
-y_test  <- as.integer(valid_Fracture_list$V1)
+y_valid <- as.integer(valid_Fracture_list$V1)
+y_test  <- as.integer(test_Fracture_list$V1)
 
 
 ##################### Check dimensions #####################
 
 dim(x_train)
+dim(x_valid)
 dim(x_test)
 
 length(y_train)
+length(y_valid)
 length(y_test)
-
 
 
 ###########Class weighting #######################
@@ -138,7 +160,7 @@ model <- keras_model_sequential() |>
   ) |>
   layer_flatten() |>
   layer_dense(units = 256, activation = "relu") |>
-  layer_dropout(rate = 0.4) |>
+  layer_dropout(rate = 0.35) |>
   layer_dense(units = num_classes, activation = "softmax")
 
 
@@ -153,15 +175,20 @@ model |> compile(
 
 ################## Train model ##################
 
+start_time <- Sys.time()
+
 history <- model |> fit(
   x = x_train,
   y = y_train,
   epochs = 25,
   batch_size = 32,
-  validation_data = list(x_test, y_test),
+  validation_data = list(x_valid, y_valid),
   class_weight = class_weights
 )
 
+end_time <- Sys.time()
+
+training_time <- end_time - start_time
 
 ################## Model summary ##################
 
@@ -172,11 +199,11 @@ summary(model)
 plot(history)
 
 
-############ Model eval ###########
-# Predict classes for validation images
+############ Model evaluation ###########
+
+# Predict classes for test images
 pred_prob <- predict(model, x_test)
 y_pred <- max.col(pred_prob) - 1
-
 
 # Convert numerical predictions to fracture names
 y_pred_names <- class_names[y_pred + 1]
@@ -190,7 +217,7 @@ table(
   Predicted = factor(y_pred, levels = 0:9)
 )
 
-# Evaluate overall validation performance
+# Evaluate overall test performance
 model |> evaluate(x_test, y_test)
 
 save_fracture_models(
@@ -198,3 +225,7 @@ save_fracture_models(
   classification_model = model,
   class_names = class_names
 )
+
+
+
+training_time
