@@ -212,10 +212,33 @@ y_pred_names <- class_names[y_pred + 1]
 table(y_pred_names)
 
 # Confusion matrix
-table(
-  Actual = factor(y_test, levels = 0:9),
-  Predicted = factor(y_pred, levels = 0:9)
+cm <- table(
+  Actual = factor(y_test, levels = 0:9, labels = class_names),
+  Predicted = factor(y_pred, levels = 0:9, labels = class_names)
 )
+
+# Convert to data frame for plotting
+cm_df <- as.data.frame(cm)
+
+# Plot confusion matrix
+ggplot(cm_df, aes(x = Predicted, y = Actual, fill = Freq)) +
+  geom_tile(color = "white", linewidth = 0.5) +
+  geom_text(aes(label = Freq), size = 3.5) +
+  scale_fill_gradient(low = "white", high = "steelblue") +
+  scale_y_discrete(limits = rev(class_names)) +
+  labs(
+    title = "Classification CNN Confusion Matrix",
+    x = "Predicted Class",
+    y = "Actual Class",
+    fill = "Count"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    panel.grid = element_blank()
+  ) +
+  coord_fixed()
 
 # Evaluate overall test performance
 model |> evaluate(x_test, y_test)
