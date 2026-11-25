@@ -13,3 +13,6 @@ Detection_CNN_Data_Prep.R
 Detection_CNN.R
 Detection_CNN_Box_Testing.R
 Detection_CNN_Object_Presence_Testing.R
+
+
+I wouldn't advise running the detection stuff at the same time as the regular pipeline. Its not really computationally feasible, its horrendously demanding.
