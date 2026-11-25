@@ -43,7 +43,7 @@ model_path <- file.path(
 
 model_file <- file.path(
   model_path,
-  "classification_model.keras"
+  "classification.keras"
 )
 
 classes_file <- file.path(
