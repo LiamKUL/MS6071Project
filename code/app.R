@@ -43,12 +43,12 @@ model_path <- file.path(
 
 model_file <- file.path(
   model_path,
-  "bone_fracture_model.keras"
+  "classification_model.keras"
 )
 
 classes_file <- file.path(
   model_path,
-  "fracture_classes.rds"
+  "class_names.rds"
 )
 
 # Check that model files exist
